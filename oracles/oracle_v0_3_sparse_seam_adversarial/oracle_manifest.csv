@@ -1,0 +1,13 @@
+case_id,height,width,max_pixels,min_pixels
+constant_128x128,128,128,16384,16384
+constant_129x257,129,257,33153,33153
+horizontal_plateau_all_vertical_seams_129x257,129,257,2785,30368
+vertical_plateau_all_horizontal_seams_257x129,257,129,30368,2785
+diagonal_corner_chain_193x193,193,193,385,36864
+checkerboard_129x129,129,129,8320,8321
+quantized_stripes_129x129,129,129,4152,4155
+nested_rings_257x257,257,257,8296,8429
+random_blocks_q4_193x257,193,257,13208,11448
+quantized_gradient_193x257,193,257,6228,6229
+giant_plateau_single_greater_193x257,193,257,1,49600
+giant_plateau_single_smaller_193x257,193,257,49600,1
