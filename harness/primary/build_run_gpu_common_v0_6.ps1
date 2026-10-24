@@ -9,8 +9,8 @@ $ProgressPreference = "SilentlyContinue"
 
 $root = "$ssRoot"
 $harness = Join-Path $repo "harness\primary"
-$source = Join-Path $harness "gpu_common_v0_5.cu"
-$executable = Join-Path $harness "gpu_common_v0_5.exe"
+$source = Join-Path $harness "gpu_common_v0_6.cu"
+$executable = Join-Path $harness "gpu_common_v0_6.exe"
 $nvcc = "$cudaRoot\bin\nvcc.exe"
 $opencvRoot = "$ocvRoot"
 $opencvInclude = Join-Path $opencvRoot "include"
@@ -54,7 +54,7 @@ $suites = @(
 
 foreach ($suite in $suites) {
     $result = Join-Path $root (
-        "results\gpu_common_v0.5_{0}_correctness_sog" -f
+        "results\gpu_common_v0.6_{0}_correctness_sog" -f
         $suite.Name)
     New-Item -ItemType Directory -Path $result -Force | Out-Null
     & $executable `
@@ -73,6 +73,6 @@ foreach ($suite in $suites) {
     }
 }
 
-Write-Output "[GPU-COMMON-v0.5-BUILD-RUN-OK]"
+Write-Output "[GPU-COMMON-v0.6-BUILD-RUN-OK]"
 Write-Output "source_sha256=$((Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash)"
 Write-Output "executable_sha256=$((Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash)"

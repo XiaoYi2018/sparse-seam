@@ -6,35 +6,22 @@ if ($env:OPENCV_ROOT) { $ocvRoot = $env:OPENCV_ROOT } else { $ocvRoot = "C:\open
 if ($env:CUDA_PATH) { $cudaRoot = $env:CUDA_PATH } else { $cudaRoot = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.6" }
 $ErrorActionPreference = "Stop"
 
-$root = "$ssRoot"
-$harness = Join-Path $repo "harness\quantization_and_scaling"
-$source = Join-Path $harness "gpu_common_quant_v0_6.cu"
-$executable = Join-Path $harness "gpu_common_quant_v0_6.exe"
-$nvcc = (
-    "C:\Program Files\NVIDIA GPU Computing Toolkit\" +
-    "CUDA\v12.6\bin\nvcc.exe")
-$opencvRoot = "$ocvRoot"
+$harness = Join-Path $repo "datasets\synthetic_alignment_control"
+$source = Join-Path $harness "generate_scaling_suite_v0_2.cu"
+$executable = Join-Path $harness "generate_scaling_suite_v0_2.exe"
+$nvcc = Join-Path $cudaRoot "bin\nvcc.exe"
 
 & $nvcc `
     -O3 `
     -std=c++17 `
     -arch=sm_89 `
-    -DSS_TILE=32 `
-    -DSS_CLASSIFY_VARIANT=1 `
     -Xcompiler "/EHsc /O2" `
-    "-I$(Join-Path $opencvRoot 'include')" `
-    "-L$(Join-Path $opencvRoot 'x64\vc16\lib')" `
-    -lopencv_world4110 `
     $source `
     -o $executable
 if ($LASTEXITCODE -ne 0) {
     throw "nvcc failed with exit code $LASTEXITCODE"
 }
 
-Write-Output "[GPU-COMMON-QUANT-v0.6-BUILD-OK]"
-Write-Output (
-    "source_sha256=" +
-    (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash)
-Write-Output (
-    "executable_sha256=" +
-    (Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash)
+Write-Output "[ALIGNMENT-GENERATOR-v0.2-BUILD-OK]"
+Write-Output "source_sha256=$((Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash)"
+Write-Output "executable_sha256=$((Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash)"

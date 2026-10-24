@@ -8,3 +8,7 @@ build/
 dist/
 data/
 results/
+baselines/cucim/venv/
+baselines/cucim/third_party/
+__pycache__/
+*.pyc

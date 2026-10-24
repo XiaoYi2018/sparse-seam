@@ -8,37 +8,52 @@ $ErrorActionPreference = "Stop"
 
 $root = "$ssRoot"
 $harness = Join-Path $repo "harness\quantization_and_scaling"
-$executable = Join-Path $harness "gpu_common_quant_v0_6.exe"
-$dataset = Join-Path $root (
-    "data\BSDS500_official_v0.1\images_v0.2")
+$executable = Join-Path $harness "gpu_common_quant_v0_7.exe"
 $env:PATH = @(
     "$cudaRoot\bin"
     "$ocvRoot\x64\vc16\bin"
     $env:PATH
 ) -join ";"
 
-foreach ($order in @("gos", "sog")) {
+$suites = @(
+    @{
+        Name = "oracle34"
+        Root = Join-Path $repo "oracles\oracle_v0_1"
+        Inputs = "inputs_png"
+    },
+    @{
+        Name = "fuzz160"
+        Root = Join-Path $repo "oracles\oracle_v0_2_fuzz"
+        Inputs = "inputs"
+    },
+    @{
+        Name = "seam12"
+        Root = Join-Path $repo "oracles\oracle_v0_3_sparse_seam_adversarial"
+        Inputs = "inputs"
+    }
+)
+
+foreach ($suite in $suites) {
     $result = Join-Path $root (
         "results\" +
-        "gpu_common_quant_v0.6_BSDS500_v0.2_q256_w5_r30_{0}" -f
-        $order)
-    if (Test-Path -LiteralPath $result) {
-        throw "Refusing to overwrite existing result: $result"
-    }
-    New-Item -ItemType Directory -Path $result | Out-Null
+        "gpu_common_quant_v0.7_{0}_q256_correctness" -f
+        $suite.Name)
+    New-Item -ItemType Directory -Path $result -Force | Out-Null
     & $executable `
-        $dataset `
+        (Join-Path $suite.Root $suite.Inputs) `
         "--output=$result" `
+        "--expected-max=$(Join-Path $suite.Root 'expected_max')" `
+        "--expected-min=$(Join-Path $suite.Root 'expected_min')" `
         "--device=0" `
         "--block=16" `
-        "--warmup=5" `
-        "--reps=30" `
-        "--order=$order" `
+        "--warmup=0" `
+        "--reps=1" `
+        "--order=sog" `
         "--levels=256" |
         Tee-Object -FilePath (Join-Path $result "console.log")
     if ($LASTEXITCODE -ne 0) {
-        throw "BSDS500 $order failed with exit code $LASTEXITCODE"
+        throw "$($suite.Name) failed with exit code $LASTEXITCODE"
     }
 }
 
-Write-Output "[GPU-COMMON-QUANT-v0.6-BSDS500-v0.2-OK]"
+Write-Output "[GPU-COMMON-QUANT-v0.7-CORRECTNESS-OK]"

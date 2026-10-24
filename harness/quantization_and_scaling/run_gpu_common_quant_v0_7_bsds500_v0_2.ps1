@@ -8,24 +8,20 @@ $ErrorActionPreference = "Stop"
 
 $root = "$ssRoot"
 $harness = Join-Path $repo "harness\quantization_and_scaling"
-$executable = Join-Path $harness "gpu_common_quant_v0_6.exe"
+$executable = Join-Path $harness "gpu_common_quant_v0_7.exe"
 $dataset = Join-Path $root (
-    "data\synthetic_scaling_v0.1")
+    "data\BSDS500_official_v0.1\images_v0.2")
 $env:PATH = @(
     "$cudaRoot\bin"
     "$ocvRoot\x64\vc16\bin"
     $env:PATH
 ) -join ";"
 
-$orders = @("gos", "sog", "gos", "sog", "gos", "sog")
-for ($index = 0; $index -lt $orders.Count; ++$index) {
-    $trial = $index + 1
-    $order = $orders[$index]
-    $resultName = (
-        "gpu_common_quant_v0.6_scaling_repeat_v0.2_" +
-        "trial{0:D2}_{1}" -f $trial, $order)
+foreach ($order in @("gos", "sog")) {
     $result = Join-Path $root (
-        "results\" + $resultName)
+        "results\" +
+        "gpu_common_quant_v0.7_BSDS500_v0.2_q256_w5_r30_{0}" -f
+        $order)
     if (Test-Path -LiteralPath $result) {
         throw "Refusing to overwrite existing result: $result"
     }
@@ -41,14 +37,8 @@ for ($index = 0; $index -lt $orders.Count; ++$index) {
         "--levels=256" |
         Tee-Object -FilePath (Join-Path $result "console.log")
     if ($LASTEXITCODE -ne 0) {
-        throw (
-            "scaling repeat trial $trial order $order failed " +
-            "with exit code $LASTEXITCODE")
+        throw "BSDS500 $order failed with exit code $LASTEXITCODE"
     }
-    Write-Output (
-        "[GPU-COMMON-QUANT-v0.6-SCALING-REPEAT] " +
-        "trial=$trial order=$order OK")
 }
 
-Write-Output (
-    "[GPU-COMMON-QUANT-v0.6-SCALING-REPEAT-v0.2-OK]")
+Write-Output "[GPU-COMMON-QUANT-v0.7-BSDS500-v0.2-OK]"

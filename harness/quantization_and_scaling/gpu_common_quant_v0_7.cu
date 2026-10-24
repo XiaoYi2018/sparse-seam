@@ -1,8 +1,8 @@
-// Unified task-complete CUDA benchmark v0.5.
+// Unified quantized task-complete CUDA benchmark v0.7.
 //
 // This translation unit compiles immutable source snapshots of:
 //   1) Global-UF and FlatZone-OLE from gpu_common_v0.1;
-//   2) Sparse-Seam v0.9 variant 1 kernels at 32x32 tiles.
+//   2) Sparse-Seam v1.0 kernels (classification variant 1) at 32x32 tiles.
 //
 // It provides one process, one dataset traversal, identical warm-up/repetition
 // settings, resident-compute and reusable-allocation host-to-host timing, exact
@@ -42,7 +42,7 @@
 #define free_buffers sparse_free_buffers
 #define run_sparse_seam sparse_original_run_sparse_seam
 #define compare_masks sparse_compare_masks
-#include "snapshot_sparse_seam_cuda_v0_9_variant1.cu"
+#include "snapshot_sparse_seam_cuda_v1_0.cu"
 #undef compare_masks
 #undef run_sparse_seam
 #undef free_buffers
@@ -65,7 +65,7 @@
         }                                                                       \
     } while (0)
 
-namespace unified_v05 {
+namespace unified_v06 {
 
 namespace fs = std::filesystem;
 
@@ -432,6 +432,7 @@ static void write_row_v02(
     std::ofstream& csv,
     const std::string& algorithm,
     const fs::path& image_path,
+    int quantization_levels,
     int width,
     int height,
     int warmup,
@@ -453,6 +454,7 @@ static void write_row_v02(
         megapixels / (timing.median_h2h_ms / 1000.0);
     csv << quote_csv_v02(algorithm) << ','
         << quote_csv_v02(image_path.filename().string()) << ','
+        << quantization_levels << ','
         << width << ',' << height << ',' << std::fixed
         << std::setprecision(6) << megapixels << ','
         << warmup << ',' << repetitions << ',' << block << ','
@@ -474,16 +476,32 @@ static void write_row_v02(
         << cross_min_mismatches << '\n';
 }
 
-}  // namespace unified_v05
+static void quantize_grayscale_in_place(
+    cv::Mat& image,
+    int levels) {
+    if (levels == 256) {
+        return;
+    }
+    const int count = image.rows * image.cols;
+    for (int index = 0; index < count; ++index) {
+        const int value = static_cast<int>(image.data[index]);
+        const int bin = (value * levels) >> 8;
+        image.data[index] = static_cast<std::uint8_t>(
+            (bin * 255 + (levels - 1) / 2) /
+            (levels - 1));
+    }
+}
+
+}  // namespace unified_v06
 
 int main(int argc, char** argv) {
-    using namespace unified_v05;
+    using namespace unified_v06;
     if (argc < 2) {
         std::cerr
-            << "Usage: gpu_common_v0_5.exe <image_dir> --output=DIR"
+            << "Usage: gpu_common_quant_v0_7.exe <image_dir> --output=DIR"
                " [--expected-max=DIR --expected-min=DIR]"
                " [--device=0] [--block=16] [--warmup=5] [--reps=30]"
-               " [--order=gos|sog]\n";
+               " [--order=gos|sog] [--levels=256]\n";
         return 2;
     }
 
@@ -496,6 +514,7 @@ int main(int argc, char** argv) {
         int block = 16;
         int warmup = 5;
         int repetitions = 30;
+        int quantization_levels = 256;
         std::string execution_order = "gos";
         for (int index = 2; index < argc; ++index) {
             const std::string argument = argv[index];
@@ -515,6 +534,8 @@ int main(int argc, char** argv) {
                 repetitions = std::stoi(argument.substr(7));
             } else if (argument.rfind("--order=", 0) == 0) {
                 execution_order = argument.substr(8);
+            } else if (argument.rfind("--levels=", 0) == 0) {
+                quantization_levels = std::stoi(argument.substr(9));
             }
         }
         if (output_dir.empty()) {
@@ -533,17 +554,25 @@ int main(int argc, char** argv) {
             throw std::runtime_error(
                 "Execution order must be gos or sog");
         }
+        if (quantization_levels < 2 ||
+            quantization_levels > 256 ||
+            (quantization_levels &
+             (quantization_levels - 1)) != 0) {
+            throw std::runtime_error(
+                "Quantization levels must be a power of two in [2,256]");
+        }
 
         CUDA_CHECK_V2(cudaSetDevice(device));
         cudaDeviceProp properties{};
         CUDA_CHECK_V2(cudaGetDeviceProperties(&properties, device));
         fs::create_directories(output_dir);
-        std::ofstream csv(output_dir / "gpu_common_v0_5.csv");
+        std::ofstream csv(output_dir / "gpu_common_quant_v0_7.csv");
         if (!csv) {
             throw std::runtime_error("Cannot create benchmark CSV");
         }
         csv
-            << "algorithm,image,width,height,megapixels,warmup,repetitions,"
+            << "algorithm,image,quantization_levels,"
+               "width,height,megapixels,warmup,repetitions,"
                "block,total_allocated_bytes,total_allocated_Bpp,"
                "auxiliary_bytes,auxiliary_Bpp,"
                "median_compute_ms,p95_compute_ms,compute_mpix_s,"
@@ -554,7 +583,7 @@ int main(int argc, char** argv) {
 
         std::ofstream environment(output_dir / "environment.txt");
         environment
-            << "harness=gpu_common_v0.5\n"
+            << "harness=gpu_common_quant_v0.7\n"
             << "device_name=" << properties.name << '\n'
             << "compute_capability=" << properties.major << '.'
             << properties.minor << '\n'
@@ -564,14 +593,17 @@ int main(int argc, char** argv) {
             << "warmup=" << warmup << '\n'
             << "repetitions=" << repetitions << '\n'
             << "execution_order=" << execution_order << '\n'
+            << "quantization_levels=" << quantization_levels << '\n'
+            << "quantization_rule=bin=floor(value*levels/256);"
+               "output=round(bin*255/(levels-1));conversion_not_timed\n"
             << "timing_compute=preallocated,resident_input,task_complete\n"
             << "timing_h2h=reused_allocation,H2D+compute+D2H_two_masks\n"
             << "auxiliary_definition=all_device_buffers_except_input_and_"
                "two_output_masks\n"
             << "source_common_v0.1_sha256="
                "FE817F2C06F557D2313FCF36E3CC875409B9C73D513129455F67021098A1C8CD\n"
-            << "source_sparse_v0.9_sha256="
-               "B8F4866E0403C68798C89D668ADBD4972B847FE211752C2348B894951B0CC687\n"
+            << "source_sparse_v1.0_sha256="
+               "29F74737DCD0A372B15F4AD3BF4A9CDBB9734B20A67A37A7EC37A4A8A86BA2C7\n"
             << "sparse_tile=32\n"
             << "sparse_classification_variant=1\n"
             << "sparse_initialization=fused_into_tile_classification\n";
@@ -591,6 +623,8 @@ int main(int argc, char** argv) {
             if (!image.isContinuous()) {
                 image = image.clone();
             }
+            quantize_grayscale_in_place(
+                image, quantization_levels);
             const int width = image.cols;
             const int height = image.rows;
             const int pixels = width * height;
@@ -709,24 +743,26 @@ int main(int argc, char** argv) {
                 sparse_memory_v02(
                     pixels, fragment_capacity, tile_count);
             write_row_v02(
-                csv, "Global-UF-CUDA", image_path, width, height,
+                csv, "Global-UF-CUDA", image_path,
+                quantization_levels, width, height,
                 warmup, repetitions, block, common_memory, guf_timing,
                 guf_oracle.first, guf_oracle.second, 0, 0);
             write_row_v02(
-                csv, "FlatZone-OLE-CUDA", image_path, width, height,
+                csv, "FlatZone-OLE-CUDA", image_path,
+                quantization_levels, width, height,
                 warmup, repetitions, block, common_memory, ole_timing,
                 ole_oracle.first, ole_oracle.second,
                 ole_cross_max, ole_cross_min);
             write_row_v02(
-                csv, "Sparse-Seam-v0.9-variant1",
-                image_path, width, height,
+                csv, "Sparse-Seam-v1.0",
+                image_path, quantization_levels, width, height,
                 warmup, repetitions, 256, sparse_memory, sparse_timing,
                 sparse_oracle.first, sparse_oracle.second,
                 sparse_cross_max, sparse_cross_min);
             csv.flush();
 
             std::cout
-                << "[GPU-COMMON-v0.5] "
+                << "[GPU-COMMON-QUANT-v0.7] "
                 << image_path.filename().string()
                 << " GUF_ms=" << guf_timing.median_compute_ms
                 << " OLE_ms=" << ole_timing.median_compute_ms
@@ -745,7 +781,7 @@ int main(int argc, char** argv) {
         }
 
         std::cout
-            << "[GPU-COMMON-v0.5-OK] images=" << files.size()
+            << "[GPU-COMMON-QUANT-v0.7-OK] images=" << files.size()
             << " oracle_mismatches=" << total_oracle_mismatches
             << " cross_mismatches=" << total_cross_mismatches
             << " output=" << output_dir.string() << '\n';

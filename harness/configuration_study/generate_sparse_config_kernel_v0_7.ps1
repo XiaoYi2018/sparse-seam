@@ -11,7 +11,7 @@
 
 $ErrorActionPreference = "Stop"
 
-$expectedCanonicalHash = "B8F4866E0403C68798C89D668ADBD4972B847FE211752C2348B894951B0CC687"
+$expectedCanonicalHash = "29F74737DCD0A372B15F4AD3BF4A9CDBB9734B20A67A37A7EC37A4A8A86BA2C7"
 
 function Write-NewUtf8File {
     param(
@@ -123,7 +123,7 @@ Write-NewUtf8File -LiteralPath $GeneratedSource -Text $generated
 
 $generatedHash = (Get-FileHash -LiteralPath $GeneratedSource -Algorithm SHA256).Hash
 $audit = @(
-    "generator=generate_sparse_config_kernel_v0.6"
+    "generator=generate_sparse_config_kernel_v0.7"
     "canonical_path=$CanonicalSource"
     "canonical_sha256=$canonicalHash"
     "generated_path=$GeneratedSource"
@@ -148,6 +148,6 @@ if ($canonicalHashAfter -ne $canonicalHash -or
     throw "Canonical or generated source changed before generator completion"
 }
 
-Write-Output "[SPARSE-CONFIG-KERNEL-GENERATOR-v0.6-OK]"
+Write-Output "[SPARSE-CONFIG-KERNEL-GENERATOR-v0.7-OK]"
 Write-Output "canonical_sha256=$canonicalHash"
 Write-Output "generated_sha256=$generatedHash"

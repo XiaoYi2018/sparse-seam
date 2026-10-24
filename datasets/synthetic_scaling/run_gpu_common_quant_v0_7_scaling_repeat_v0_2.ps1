@@ -8,52 +8,47 @@ $ErrorActionPreference = "Stop"
 
 $root = "$ssRoot"
 $harness = Join-Path $repo "harness\quantization_and_scaling"
-$executable = Join-Path $harness "gpu_common_quant_v0_6.exe"
+$executable = Join-Path $harness "gpu_common_quant_v0_7.exe"
+$dataset = Join-Path $root (
+    "data\synthetic_scaling_v0.1")
 $env:PATH = @(
     "$cudaRoot\bin"
     "$ocvRoot\x64\vc16\bin"
     $env:PATH
 ) -join ";"
 
-$suites = @(
-    @{
-        Name = "oracle34"
-        Root = Join-Path $repo "oracles\oracle_v0_1"
-        Inputs = "inputs_png"
-    },
-    @{
-        Name = "fuzz160"
-        Root = Join-Path $repo "oracles\oracle_v0_2_fuzz"
-        Inputs = "inputs"
-    },
-    @{
-        Name = "seam12"
-        Root = Join-Path $repo "oracles\oracle_v0_3_sparse_seam_adversarial"
-        Inputs = "inputs"
-    }
-)
-
-foreach ($suite in $suites) {
+$orders = @("gos", "sog", "gos", "sog", "gos", "sog")
+for ($index = 0; $index -lt $orders.Count; ++$index) {
+    $trial = $index + 1
+    $order = $orders[$index]
+    $resultName = (
+        "gpu_common_quant_v0.7_scaling_repeat_v0.2_" +
+        "trial{0:D2}_{1}" -f $trial, $order)
     $result = Join-Path $root (
-        "results\" +
-        "gpu_common_quant_v0.6_{0}_q256_correctness" -f
-        $suite.Name)
-    New-Item -ItemType Directory -Path $result -Force | Out-Null
+        "results\" + $resultName)
+    if (Test-Path -LiteralPath $result) {
+        throw "Refusing to overwrite existing result: $result"
+    }
+    New-Item -ItemType Directory -Path $result | Out-Null
     & $executable `
-        (Join-Path $suite.Root $suite.Inputs) `
+        $dataset `
         "--output=$result" `
-        "--expected-max=$(Join-Path $suite.Root 'expected_max')" `
-        "--expected-min=$(Join-Path $suite.Root 'expected_min')" `
         "--device=0" `
         "--block=16" `
-        "--warmup=0" `
-        "--reps=1" `
-        "--order=sog" `
+        "--warmup=5" `
+        "--reps=30" `
+        "--order=$order" `
         "--levels=256" |
         Tee-Object -FilePath (Join-Path $result "console.log")
     if ($LASTEXITCODE -ne 0) {
-        throw "$($suite.Name) failed with exit code $LASTEXITCODE"
+        throw (
+            "scaling repeat trial $trial order $order failed " +
+            "with exit code $LASTEXITCODE")
     }
+    Write-Output (
+        "[GPU-COMMON-QUANT-v0.7-SCALING-REPEAT] " +
+        "trial=$trial order=$order OK")
 }
 
-Write-Output "[GPU-COMMON-QUANT-v0.6-CORRECTNESS-OK]"
+Write-Output (
+    "[GPU-COMMON-QUANT-v0.7-SCALING-REPEAT-v0.2-OK]")

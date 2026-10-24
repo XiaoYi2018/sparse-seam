@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
 $root = "$ssRoot"
-$executable = Join-Path $repo "harness\primary\gpu_common_v0_5.exe"
+$executable = Join-Path $repo "harness\primary\gpu_common_v0_6.exe"
 $dataset = Join-Path $root (
     "data\DIV2K_valid_HR_official\DIV2K_valid_HR")
 $env:PATH = "$ocvRoot\x64\vc16\bin;$env:PATH"
@@ -16,7 +16,7 @@ $env:PATH = "$ocvRoot\x64\vc16\bin;$env:PATH"
 foreach ($order in @("gos", "sog")) {
     $result = Join-Path $root (
         "results\" +
-        "gpu_common_v0.5_DIV2K_valid100_30rep_{0}" -f $order)
+        "gpu_common_v0.6_DIV2K_valid100_30rep_{0}" -f $order)
     New-Item -ItemType Directory -Path $result -Force | Out-Null
     & $executable `
         $dataset `
@@ -32,4 +32,4 @@ foreach ($order in @("gos", "sog")) {
     }
 }
 
-Write-Output "[GPU-COMMON-v0.5-DIV2K-VALID100-OK]"
+Write-Output "[GPU-COMMON-v0.6-DIV2K-VALID100-OK]"

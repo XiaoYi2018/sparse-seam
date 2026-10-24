@@ -1,12 +1,15 @@
 // Sparse-Seam: exact dual regional-extrema masks on the GPU.
 //
 // Exact 8-neighbour grayscale regional maxima/minima:
-//   1) build equal-valued flat zones independently inside 64x64 tiles;
+//   1) build equal-valued flat zones independently inside each tile;
 //   2) emit only tile-boundary flat-zone fragments to a compact global DSU;
 //   3) merge equal fragments across seams and reduce greater/smaller flags;
 //   4) rebuild tile-local labels and materialize globally resolved masks.
 //
-// v0.9 isolates two low-risk classification optimizations:
+// v1.0 labels tile-local flat zones by Komura equivalence (link to the first
+// equal predecessor, compress, unite left and up-right edges) instead of
+// uniting all four predecessor edges, which removes shared-memory atomic
+// contention on large plateaus. Classification variants carried over from v0.9:
 //   variant 1: division-free cross-tile equality test;
 //   variant 2: skip shared atomicOr when local evidence is zero;
 //   variant 3: both changes.
@@ -214,6 +217,46 @@ __device__ __forceinline__ void build_tile_flat_zones(
     }
     __syncthreads();
 
+    // Komura-equivalence labeling inside the tile. Each pixel first links to
+    // its first equal predecessor (up, up-left, up-right, left), the forest is
+    // compressed, and only the left and up-right edges are then united: every
+    // other equal 8-neighbour edge is implied by these through the
+    // transitivity of equality. All links point to smaller indices.
+    for (int local = static_cast<int>(threadIdx.x);
+         local < TILE_PIXELS;
+         local += static_cast<int>(blockDim.x)) {
+        const int lx = local % TILE;
+        const int ly = local / TILE;
+        if (lx >= tile_width || ly >= tile_height) {
+            continue;
+        }
+        const std::uint8_t value = tile_image[local];
+        int parent = local;
+        if (ly > 0 && tile_image[local - TILE] == value) {
+            parent = local - TILE;
+        } else if (ly > 0 && lx > 0 && tile_image[local - TILE - 1] == value) {
+            parent = local - TILE - 1;
+        } else if (ly > 0 && lx + 1 < tile_width &&
+                   tile_image[local - TILE + 1] == value) {
+            parent = local - TILE + 1;
+        } else if (lx > 0 && tile_image[local - 1] == value) {
+            parent = local - 1;
+        }
+        labels[local] = parent;
+    }
+    __syncthreads();
+
+    for (int local = static_cast<int>(threadIdx.x);
+         local < TILE_PIXELS;
+         local += static_cast<int>(blockDim.x)) {
+        const int lx = local % TILE;
+        const int ly = local / TILE;
+        if (lx < tile_width && ly < tile_height) {
+            labels[local] = shared_find_root(labels, local);
+        }
+    }
+    __syncthreads();
+
     for (int local = static_cast<int>(threadIdx.x);
          local < TILE_PIXELS;
          local += static_cast<int>(blockDim.x)) {
@@ -226,17 +269,9 @@ __device__ __forceinline__ void build_tile_flat_zones(
         if (lx > 0 && tile_image[local - 1] == value) {
             shared_union_minroot(labels, local, local - 1);
         }
-        if (ly > 0) {
-            if (tile_image[local - TILE] == value) {
-                shared_union_minroot(labels, local, local - TILE);
-            }
-            if (lx > 0 && tile_image[local - TILE - 1] == value) {
-                shared_union_minroot(labels, local, local - TILE - 1);
-            }
-            if (lx + 1 < tile_width &&
-                tile_image[local - TILE + 1] == value) {
-                shared_union_minroot(labels, local, local - TILE + 1);
-            }
+        if (ly > 0 && lx + 1 < tile_width &&
+            tile_image[local - TILE + 1] == value) {
+            shared_union_minroot(labels, local, local - TILE + 1);
         }
     }
     __syncthreads();
@@ -862,7 +897,7 @@ static std::uint64_t compare_masks(
 int main(int argc, char** argv) {
     if (argc < 5) {
         std::cerr
-            << "Usage: sparse_seam_cuda_v0_9.exe <image_dir>"
+            << "Usage: sparse_seam_cuda_v1_0.exe <image_dir>"
                " <expected_max_dir> <expected_min_dir> --output=DIR"
                " [--device=0] [--skip-expected]\n";
         return 2;
@@ -1004,7 +1039,7 @@ int main(int argc, char** argv) {
 
         std::ofstream environment(output_dir / "environment.txt");
         environment
-            << "algorithm=Sparse-Seam-CUDA-v0.9\n"
+            << "algorithm=Sparse-Seam-CUDA-v1.0\n"
             << "device_name=" << properties.name << '\n'
             << "compute_capability=" << properties.major << '.'
             << properties.minor << '\n'

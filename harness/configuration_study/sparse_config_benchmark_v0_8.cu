@@ -1,4 +1,4 @@
-// Unified in-process configuration benchmark for Sparse-Seam v0.9 variant 1.
+// Unified in-process configuration benchmark for Sparse-Seam v1.0 (classification variant 1).
 //
 // The included generated snapshot owns all device code and the unchanged
 // allocate_buffers(), run_sparse_seam(), compare_masks(), and free_buffers()
@@ -6,7 +6,7 @@
 // without reimplementing the five-kernel sequence.
 
 #define main sparse_snapshot_disabled_main
-#include "generated_sparse_seam_kernel_v0_6.cu"
+#include "generated_sparse_seam_kernel_v0_7.cu"
 #undef main
 
 #include <cmath>
@@ -141,7 +141,7 @@ static std::set<std::string> regular_filenames_v07(
 int main(int argc, char** argv) {
     if (argc < 5) {
         std::cerr
-            << "Usage: sparse_config_benchmark_v0_7.exe <image_dir>"
+            << "Usage: sparse_config_benchmark_v0_8.exe <image_dir>"
                " <expected_max_dir> <expected_min_dir> --output=DIR"
                " [--device=0] [--warmup=5] [--reps=10]"
                " [--round=1] [--config=NAME] [--skip-expected]\n";
@@ -446,7 +446,7 @@ int main(int argc, char** argv) {
 
             buffer_guard.release_checked();
             std::cout
-                << "[SPARSE-CONFIG-v0.7] "
+                << "[SPARSE-CONFIG-v0.8] "
                 << config_name << " round=" << round << ' '
                 << image_path.filename().string()
                 << " median_ms=" << median_ms
@@ -475,8 +475,8 @@ int main(int argc, char** argv) {
         environment.exceptions(
             std::ios::failbit | std::ios::badbit);
         environment
-            << "algorithm=Sparse-Seam-v0.9-variant1\n"
-            << "harness=sparse_config_benchmark_v0.7_inprocess\n"
+            << "algorithm=Sparse-Seam-v1.0\n"
+            << "harness=sparse_config_benchmark_v0.8_inprocess\n"
             << "config=" << config_name << '\n'
             << "round=" << round << '\n'
             << "device_name=" << properties.name << '\n'
@@ -501,7 +501,7 @@ int main(int argc, char** argv) {
         }
 
         std::cout
-            << "[SPARSE-CONFIG-v0.7-OK] config=" << config_name
+            << "[SPARSE-CONFIG-v0.8-OK] config=" << config_name
             << " round=" << round
             << " images=" << files.size()
             << " pixels=" << total_pixels
@@ -512,7 +512,7 @@ int main(int argc, char** argv) {
             << '\n';
         return 0;
     } catch (const std::exception& error) {
-        std::cerr << "[SPARSE-CONFIG-v0.7-FAIL] "
+        std::cerr << "[SPARSE-CONFIG-v0.8-FAIL] "
                   << error.what() << '\n';
         return 1;
     }

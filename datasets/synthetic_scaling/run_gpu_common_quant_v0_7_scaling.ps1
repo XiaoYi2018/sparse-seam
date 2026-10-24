@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 
 $root = "$ssRoot"
 $harness = Join-Path $repo "harness\quantization_and_scaling"
-$executable = Join-Path $harness "gpu_common_quant_v0_6.exe"
+$executable = Join-Path $harness "gpu_common_quant_v0_7.exe"
 $dataset = Join-Path $root (
     "data\synthetic_scaling_v0.1")
 $env:PATH = @(
@@ -20,7 +20,7 @@ $env:PATH = @(
 foreach ($order in @("gos", "sog")) {
     $result = Join-Path $root (
         "results\" +
-        "gpu_common_quant_v0.6_scaling_v0.1_w5_r30_{0}" -f
+        "gpu_common_quant_v0.7_scaling_v0.1_w5_r30_{0}" -f
         $order)
     New-Item -ItemType Directory -Path $result -Force | Out-Null
     & $executable `
@@ -38,4 +38,4 @@ foreach ($order in @("gos", "sog")) {
     }
 }
 
-Write-Output "[GPU-COMMON-QUANT-v0.6-SCALING-OK]"
+Write-Output "[GPU-COMMON-QUANT-v0.7-SCALING-OK]"

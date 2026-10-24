@@ -8,7 +8,7 @@ $ErrorActionPreference = "Stop"
 
 $root = "$ssRoot"
 $harness = Join-Path $repo "harness\quantization_and_scaling"
-$executable = Join-Path $harness "gpu_common_quant_v0_6.exe"
+$executable = Join-Path $harness "gpu_common_quant_v0_7.exe"
 $dataset = Join-Path $root (
     "data\" +
     "DIV2K_valid_HR_official\DIV2K_valid_HR")
@@ -22,7 +22,7 @@ foreach ($levels in @(256, 32, 16, 8, 4, 2)) {
     foreach ($order in @("gos", "sog")) {
         $result = Join-Path $root (
             "results\" +
-            "gpu_common_quant_v0.6_DIV2K_valid100_q{0}_w5_r30_{1}" -f
+            "gpu_common_quant_v0.7_DIV2K_valid100_q{0}_w5_r30_{1}" -f
             $levels, $order)
         New-Item -ItemType Directory -Path $result -Force | Out-Null
         & $executable `
@@ -43,4 +43,4 @@ foreach ($levels in @(256, 32, 16, 8, 4, 2)) {
     }
 }
 
-Write-Output "[GPU-COMMON-QUANT-v0.6-DIV2K-OK]"
+Write-Output "[GPU-COMMON-QUANT-v0.7-DIV2K-OK]"

@@ -16,7 +16,6 @@ $result = Join-Path $root "results\iwpp_reconstruction_cuda_v0.1_DIV2K_valid100_
 $opencvBin = "$ocvRoot\x64\vc16\bin"
 $wrapper = $MyInvocation.MyCommand.Path
 $expectedSourceHash = "C17E2561A638AA21DCC16D62121CF6ADC30E4B8F1D66915D4CFCACD465CC0CD5"
-$expectedExeHash = "9B4357F1D1E985D0E925AF7F26D701AEEA55C293E0FEAF781D033DFE532F6210"
 
 if (Test-Path -LiteralPath $result) {
     throw "Refusing to overwrite existing result directory: $result"
@@ -41,9 +40,7 @@ $wrapperHashBefore = (Get-FileHash -LiteralPath $wrapper -Algorithm SHA256).Hash
 if ($sourceHashBefore -ne $expectedSourceHash) {
     throw "Source identity mismatch: $sourceHashBefore"
 }
-if ($exeHashBefore -ne $expectedExeHash) {
-    throw "Executable identity mismatch: $exeHashBefore"
-}
+# The executable hash depends on the local build and is recorded, not checked.
 
 New-Item -ItemType Directory -Path $result | Out-Null
 $manifest = Join-Path $result "dataset_manifest_sha256.csv"

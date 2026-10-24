@@ -8,21 +8,24 @@ $ErrorActionPreference = "Stop"
 
 $root = "$ssRoot"
 $harness = Join-Path $repo "harness\quantization_and_scaling"
-$executable = Join-Path $harness "gpu_common_quant_v0_6.exe"
+$executable = Join-Path $harness "gpu_common_quant_v0_7.exe"
 $dataset = Join-Path $root (
-    "data\BBBC038_stage1_train_derived_v0.3\" +
-    "derived_marker_watershed_v0.2\distance_maps")
+    "data\synthetic_scaling_alignment_v0.2")
 $env:PATH = @(
     "$cudaRoot\bin"
     "$ocvRoot\x64\vc16\bin"
     $env:PATH
 ) -join ";"
 
-foreach ($order in @("gos", "sog")) {
+$orders = @("gos", "sog", "gos", "sog", "gos", "sog")
+for ($index = 0; $index -lt $orders.Count; ++$index) {
+    $trial = $index + 1
+    $order = $orders[$index]
+    $resultName = (
+        "gpu_common_quant_v0.7_scaling_alignment_v0.2_" +
+        "trial{0:D2}_{1}" -f $trial, $order)
     $result = Join-Path $root (
-        "results\" +
-        "gpu_common_quant_v0.6_BBBC038_distance_v0.3_" +
-        "q256_w5_r30_{0}" -f $order)
+        "results\" + $resultName)
     if (Test-Path -LiteralPath $result) {
         throw "Refusing to overwrite existing result: $result"
     }
@@ -38,9 +41,14 @@ foreach ($order in @("gos", "sog")) {
         "--levels=256" |
         Tee-Object -FilePath (Join-Path $result "console.log")
     if ($LASTEXITCODE -ne 0) {
-        throw "BBBC038 distance $order failed: $LASTEXITCODE"
+        throw (
+            "alignment trial $trial order $order failed " +
+            "with exit code $LASTEXITCODE")
     }
+    Write-Output (
+        "[GPU-COMMON-QUANT-v0.7-ALIGNMENT] " +
+        "trial=$trial order=$order OK")
 }
 
 Write-Output (
-    "[GPU-COMMON-QUANT-v0.6-BBBC038-DISTANCE-v0.3-OK]")
+    "[GPU-COMMON-QUANT-v0.7-ALIGNMENT-v0.2-OK]")
